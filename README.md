@@ -4,6 +4,8 @@
 
 Hear a sound every time you press a key on your Mac. Pick a keyboard click, a typewriter, a bubble pop, a gunshot, a meow, a woof or a quack, or add a sound of your own.
 
+![Thock's Playground with an interactive keyboard, sound presets, and volume controls](Resources/Screenshot.png)
+
 ## Install
 
 Copy this into any AI agent that can use your terminal (Claude Code, Codex, Cursor…) and it will set Thock up for you:
