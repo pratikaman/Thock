@@ -18,7 +18,7 @@ struct ThockApp: App {
             RootView().environmentObject(model)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 1060, height: 760)
+        .defaultSize(width: 1080, height: 780)
 
         MenuBarExtra {
             MenuContent().environmentObject(model)
@@ -40,7 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// Click-through panel at the bottom of the screen that hosts the typing pill.
+/// Click-through panel at the bottom of the screen that hosts the typing meter.
 final class PillPanel: NSPanel {
     private var sink: AnyCancellable?
     private var lastPulse = Date.distantPast

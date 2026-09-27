@@ -1,362 +1,564 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: Theme — palette sampled from Wispr Flow's desktop app, same type pairing (EB Garamond + Figtree)
+// MARK: Workbench theme
 
 extension Color {
     init(hex: UInt32) {
         self.init(.sRGB, red: Double(hex >> 16 & 0xFF) / 255, green: Double(hex >> 8 & 0xFF) / 255, blue: Double(hex & 0xFF) / 255)
     }
 
-    static let chrome = Color(hex: 0xF7F6F3)
-    static let paper = Color(hex: 0xFCFCFB)
-    static let well = Color(hex: 0xF4F3EF)
-    static let line = Color(hex: 0xE7E5DF)
-    static let ink = Color(hex: 0x1A1A1A)
-    static let muted = Color(hex: 0x6F6E6A)
-    static let selection = Color(hex: 0xEDEAE3)
-    static let lavender = Color(hex: 0xF0D7FF)
-    static let plum = Color(hex: 0x9A5BC4)
+    static let canvas = Color(hex: 0xF3F5F8)
+    static let surface = Color.white
+    static let inset = Color(hex: 0xEBEFF5)
+    static let line = Color(hex: 0xDFE4ED)
+    static let ink = Color(hex: 0x1C2940)
+    static let muted = Color(hex: 0x657187)
+    static let accent = Color(hex: 0x325EF5)
+    static let accentWash = Color(hex: 0xEAF0FF)
+    static let positive = Color(hex: 0x267457)
 }
 
 extension Font {
-    static func serif(_ size: CGFloat) -> Font { .custom("EB Garamond", size: size) }
-    static func sans(_ size: CGFloat, _ weight: Weight = .regular) -> Font { .custom("Figtree", size: size).weight(weight) }
+    static func display(_ size: CGFloat) -> Font { .custom("AvenirNext-Bold", size: size) }
+    static func bodyText(_ size: CGFloat, bold: Bool = false) -> Font {
+        .custom(bold ? "AvenirNext-DemiBold" : "AvenirNext-Medium", size: size)
+    }
+    static func technical(_ size: CGFloat) -> Font { .custom("Menlo-Regular", size: size) }
 }
 
 extension View {
-    func card(_ fill: Color = .well, radius: CGFloat = 12) -> some View {
+    func panel(fill: Color = .surface, radius: CGFloat = 18) -> some View {
         background(RoundedRectangle(cornerRadius: radius, style: .continuous).fill(fill))
             .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(Color.line))
     }
 }
 
-// MARK: Shell
+extension Sound {
+    var symbol: String {
+        switch id {
+        case "keyboard": "keyboard"
+        case "typewriter": "textformat.abc"
+        case "pop": "bubbles.and.sparkles"
+        case "gun": "burst"
+        case "meow": "cat"
+        case "bark": "dog"
+        case "quack": "bird"
+        default: "waveform"
+        }
+    }
+}
+
+// MARK: Window shell
 
 enum Page: String, CaseIterable {
-    case home = "Home", sounds = "Sounds", settings = "Settings"
+    case studio = "Playground", sounds = "Sounds", settings = "Settings"
 
     var icon: String {
         switch self {
-        case .home: "square.grid.2x2"
-        case .sounds: "speaker.wave.2"
-        case .settings: "gearshape"
+        case .studio: "keyboard"
+        case .sounds: "square.stack.3d.up"
+        case .settings: "slider.horizontal.3"
         }
     }
 }
 
 struct RootView: View {
-    @State private var page: Page = .home
+    @State private var page: Page
+
+    init(page: Page = .studio) { _page = State(initialValue: page) }
 
     var body: some View {
-        HStack(spacing: 0) {
-            Sidebar(page: $page)
+        VStack(spacing: 0) {
+            TopBar(page: $page)
+            Rectangle().fill(Color.line).frame(height: 1)
             ScrollView {
                 Group {
                     switch page {
-                    case .home: HomePage(page: $page)
+                    case .studio: StudioPage(page: $page)
                     case .sounds: SoundsPage()
                     case .settings: SettingsPage()
                     }
                 }
-                .frame(maxWidth: 820, alignment: .leading)
-                .padding(.horizontal, 44)
-                .padding(.vertical, 40)
-                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 30).padding(.vertical, 24)
+                .frame(maxWidth: 1180)
+                .frame(maxWidth: .infinity, alignment: .top)
             }
-            .background(Color.paper)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.line))
-            .padding(.top, 44)
-            .padding([.trailing, .bottom], 10)
+            BottomBar()
         }
-        .overlay(alignment: .topTrailing) { StatusChip().padding(.top, 9).padding(.trailing, 14) }
-        .background(Color.chrome)
+        .background(Color.canvas)
         .ignoresSafeArea()
-        .frame(minWidth: 900, minHeight: 620)
-        .font(.sans(14))
+        .frame(minWidth: 960, minHeight: 700)
+        .font(.bodyText(14))
         .foregroundStyle(Color.ink)
+        .tint(Color.accent)
         .preferredColorScheme(.light)
     }
 }
 
-struct Sidebar: View {
+struct TopBar: View {
     @Binding var page: Page
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack(spacing: 9) {
-                Keycap(size: 24)
-                Text("Thock").font(.serif(28))
+        HStack(spacing: 30) {
+            HStack(spacing: 10) {
+                BrandMark()
+                Text("thock.").font(.display(27)).tracking(-1.2)
             }
-            .padding(.leading, 10).padding(.top, 50).padding(.bottom, 22)
-            NavItem(page: .home, current: $page)
-            NavItem(page: .sounds, current: $page)
-            Spacer()
-            NavItem(page: .settings, current: $page)
-            Text("Thock v1.0").font(.sans(12)).foregroundStyle(Color.muted)
-                .padding(.leading, 12).padding(.top, 12).padding(.bottom, 16)
+            .frame(width: 160, alignment: .leading)
+            HStack(spacing: 6) {
+                ForEach(Page.allCases, id: \.self) { item in
+                    Button { page = item } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: item.icon).font(.system(size: 13, weight: .semibold))
+                            Text(item.rawValue).font(.bodyText(13, bold: true))
+                        }
+                        .padding(.horizontal, 15).frame(height: 36)
+                        .foregroundStyle(page == item ? Color.accent : Color.muted)
+                        .background(RoundedRectangle(cornerRadius: 9).fill(page == item ? Color.accentWash : .clear))
+                    }
+                    .buttonStyle(QuietButton())
+                    .accessibilityAddTraits(page == item ? .isSelected : [])
+                }
+            }
+            Spacer(minLength: 8)
+            StatusControl()
         }
-        .padding(.horizontal, 10)
-        .frame(width: 204)
+        .padding(.horizontal, 30)
+        .padding(.top, 32).padding(.bottom, 16)
+        .background(Color.surface)
     }
 }
 
-struct NavItem: View {
-    let page: Page
-    @Binding var current: Page
-    @State private var hover = false
-
+struct BrandMark: View {
     var body: some View {
-        Button { current = page } label: {
-            HStack(spacing: 11) {
-                Image(systemName: page.icon).font(.system(size: 14)).frame(width: 18)
-                Text(page.rawValue).font(.sans(15, .medium))
-                Spacer()
+        ZStack {
+            RoundedRectangle(cornerRadius: 9).fill(Color.accent)
+            HStack(alignment: .bottom, spacing: 3) {
+                ForEach([10.0, 18.0, 13.0], id: \.self) { height in
+                    RoundedRectangle(cornerRadius: 2).fill(.white).frame(width: 4, height: height)
+                }
             }
-            .padding(.horizontal, 10)
-            .frame(height: 34)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(current == page ? Color.selection : hover ? Color.selection.opacity(0.55) : .clear))
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .onHover { hover = $0 }
+        .frame(width: 32, height: 32)
+        .accessibilityHidden(true)
     }
 }
 
-struct Keycap: View {
-    var size: CGFloat
-
-    var body: some View {
-        RoundedRectangle(cornerRadius: size * 0.26, style: .continuous)
-            .fill(Color.ink)
-            .frame(width: size, height: size)
-            .overlay(alignment: .top) {
-                RoundedRectangle(cornerRadius: size * 0.18, style: .continuous)
-                    .fill(Color(hex: 0x3A3A3A))
-                    .frame(width: size * 0.74, height: size * 0.68)
-                    .overlay(Text("T").font(.serif(size * 0.52)).foregroundStyle(.white))
-                    .padding(.top, size * 0.09)
-            }
-    }
-}
-
-struct StatusChip: View {
+struct StatusControl: View {
     @EnvironmentObject var model: AppModel
 
+    private var title: String {
+        if !model.listening { return "Enable keyboard" }
+        if !model.enabled { return "Sound paused" }
+        return model.secureInputApp == nil ? "Sound is on" : "Secure Input"
+    }
+
     var body: some View {
-        let (label, dot): (String, Color) =
-            !model.listening ? ("Needs permission", Color(hex: 0xE0663C))
-            : !model.enabled ? ("Paused", Color(hex: 0xB8B5AD))
-            : model.secureInputApp != nil ? ("Hidden by Secure Input", Color(hex: 0xE3A13B))
-            : ("Listening", Color(hex: 0x2F9E6A))
         Button {
             if model.listening { model.enabled.toggle() } else { model.requestAccess() }
         } label: {
-            HStack(spacing: 7) {
-                Circle().fill(dot).frame(width: 7, height: 7)
-                Text(label).font(.sans(12.5, .medium))
+            HStack(spacing: 8) {
+                Circle().fill(model.listening && model.enabled && model.secureInputApp == nil ? Color.positive : Color.muted)
+                    .frame(width: 6, height: 6)
+                Text(title).font(.bodyText(12, bold: true))
+                Image(systemName: model.listening ? (model.enabled ? "pause.fill" : "play.fill") : "arrow.up.right")
+                    .font(.system(size: 9, weight: .bold))
             }
-            .padding(.horizontal, 11).padding(.vertical, 5)
-            .card(.paper, radius: 20)
+            .padding(.horizontal, 13).frame(height: 34)
+            .panel(radius: 8)
         }
-        .buttonStyle(.plain)
-        .help(model.listening ? "Click to pause or resume" : "Allow Input Monitoring")
+        .buttonStyle(QuietButton())
+        .help(model.listening ? "Pause or resume keystroke sounds" : "Allow Input Monitoring in System Settings")
     }
 }
 
-// MARK: Home
-
-struct HomePage: View {
+struct BottomBar: View {
     @EnvironmentObject var model: AppModel
-    @Binding var page: Page
-    @State private var scratch = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 30) {
-            PageHeader(title: greeting, subtitle: "Every key you press plays a little sound.")
-            Hero()
-            HStack(spacing: 14) {
-                StatCard(value: model.today, label: "Keystrokes today")
-                StatCard(value: model.total, label: "All time")
-                NowPlaying(page: $page)
-            }
-            .fixedSize(horizontal: false, vertical: true)
+        HStack(spacing: 7) {
+            Image(systemName: "lock.shield").font(.system(size: 11))
+            Text("Just sound. Your typing stays yours.").font(.bodyText(11))
+            Spacer()
+            Text(model.today.formatted()).foregroundStyle(Color.ink)
+            Text("TODAY")
+            Rectangle().fill(Color.line).frame(width: 1, height: 12).padding(.horizontal, 9)
+            Text(model.total.formatted()).foregroundStyle(Color.ink)
+            Text("ALL TIME")
+        }
+        .font(.technical(10)).foregroundStyle(Color.muted)
+        .padding(.horizontal, 30).frame(height: 38)
+        .background(Color.surface)
+        .overlay(alignment: .top) { Rectangle().fill(Color.line).frame(height: 1) }
+    }
+}
 
-            VStack(alignment: .leading, spacing: 12) {
-                SectionTitle("Quick switch")
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 124), spacing: 8)], alignment: .leading, spacing: 8) {
-                    ForEach(model.allSounds) { SoundChip(sound: $0) }
+// MARK: Playground
+
+struct StudioPage: View {
+    @EnvironmentObject var model: AppModel
+    @Binding var page: Page
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(alignment: .bottom) {
+                PageHeader(title: "Good keys. Great sound.", subtitle: "Give your everyday typing a little personality.")
+                Spacer()
+                Text("MAKE SOME KEY NOISE").font(.technical(9)).tracking(1.1).foregroundStyle(Color.muted)
+                    .padding(.bottom, 5)
+            }
+            HStack(alignment: .top, spacing: 18) {
+                KeyboardPlayground().frame(maxWidth: .infinity)
+                SoundInspector().frame(width: 252)
+            }
+            VStack(alignment: .leading, spacing: 13) {
+                HStack {
+                    Eyebrow("PICK YOUR SOUND")
+                    Spacer()
+                    Button { page = .sounds } label: {
+                        HStack(spacing: 6) {
+                            Text("Explore library")
+                            Image(systemName: "arrow.right").font(.system(size: 10, weight: .semibold))
+                        }
+                        .font(.bodyText(12, bold: true)).foregroundStyle(Color.accent)
+                    }
+                    .buttonStyle(QuietButton())
+                }
+                HStack(spacing: 9) {
+                    ForEach(Presets.classics + Presets.silly) { SoundTile(sound: $0) }
                 }
             }
-
-            VStack(alignment: .leading, spacing: 12) {
-                SectionTitle("Try it")
-                TextField("Type anything here to hear it…", text: $scratch, axis: .vertical)
-                    .textFieldStyle(.plain)
-                    .font(.sans(15))
-                    .lineLimit(3...6)
-                    .padding(14)
-                    .card()
-            }
         }
-    }
-
-    private var greeting: String {
-        let h = Calendar.current.component(.hour, from: .now)
-        return h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"
     }
 }
 
-struct Hero: View {
+struct KeyboardPlayground: View {
     @EnvironmentObject var model: AppModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var scratch = ""
+    @State private var pressed = false
+    @State private var release: DispatchWorkItem?
 
     var body: some View {
-        HStack(spacing: 24) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(title).font(.serif(33)).foregroundStyle(.white)
-                Text(detail).font(.sans(14.5)).foregroundStyle(.white.opacity(0.82))
-                    .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            HStack {
+                Eyebrow("THE PLAYGROUND")
+                Spacer()
+                HStack(spacing: 5) {
+                    Circle().fill(model.listening && model.enabled && model.secureInputApp == nil ? Color.positive : Color.muted)
+                        .frame(width: 5, height: 5)
+                    Text(status).font(.technical(9))
+                }
+                .foregroundStyle(Color.muted)
             }
-            Spacer(minLength: 12)
-            if model.listening {
-                Toggle("Sounds on", isOn: $model.enabled).toggleStyle(PillToggle(on: .lavender, knob: .ink))
-            } else {
-                Button("Allow access") { model.requestAccess() }.buttonStyle(PrimaryButton())
-            }
-        }
-        .padding(.horizontal, 30).padding(.vertical, 26)
-        .frame(maxWidth: .infinity, minHeight: 140)
-        .background {
+            .padding(22)
             ZStack {
-                LinearGradient(colors: [Color(hex: 0x0F3D36), Color(hex: 0x1E4A42), Color(hex: 0x3E3A2D)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing)
-                Circle().fill(Color.lavender.opacity(0.45)).frame(width: 260).blur(radius: 70).offset(x: 300, y: -70)
-                Circle().fill(Color(hex: 0xF2AA5A).opacity(0.32)).frame(width: 220).blur(radius: 70).offset(x: -280, y: 80)
+                DotGrid().foregroundStyle(Color(hex: 0xCDD5E1)).padding(.horizontal, 10)
+                VStack(spacing: 16) {
+                    MechanicalKeyboard(pressed: pressed) {
+                        model.preview(model.selected)
+                        bump()
+                    }
+                    .padding(.horizontal, 28)
+                    HStack(spacing: 6) {
+                        Image(systemName: "cursorarrow").font(.system(size: 10))
+                        Text("Click the space bar to preview").font(.bodyText(11))
+                    }
+                    .foregroundStyle(Color.muted)
+                }
             }
+            .frame(height: 217)
+            VStack(alignment: .leading, spacing: 10) {
+                TextField("Type here. Find your happy sound.", text: $scratch)
+                    .textFieldStyle(.plain).font(.bodyText(13))
+                    .padding(.horizontal, 14).frame(height: 42)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(Color.surface))
+                    .overlay(RoundedRectangle(cornerRadius: 9).strokeBorder(Color.line))
+                    .accessibilityLabel("Typing playground")
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: model.listening ? "info.circle" : "keyboard.badge.ellipsis")
+                        .font(.system(size: 10)).padding(.top, 2)
+                    Text(hint).font(.bodyText(10)).fixedSize(horizontal: false, vertical: true)
+                }
+                .foregroundStyle(Color.muted)
+            }
+            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 20)
         }
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .frame(height: 386, alignment: .top)
+        .panel(fill: Color(hex: 0xF8FAFD))
+        .onChange(of: model.pulse) { bump() }
+        .onDisappear { release?.cancel(); pressed = false }
     }
 
-    private var title: String {
-        !model.listening ? "Let Thock hear your keyboard" : model.enabled ? "Thock is listening" : "Thock is paused"
+    private var status: String {
+        if !model.listening { return "PREVIEW ONLY" }
+        if !model.enabled { return "PAUSED" }
+        return model.secureInputApp == nil ? "READY WHEN YOU ARE" : "SECURE INPUT"
     }
 
-    private var detail: String {
-        if !model.listening {
-            return "macOS asks you to allow Input Monitoring. Thock only notices that a key went down, never what you typed."
+    private var hint: String {
+        if !model.listening { return "Enable keyboard access above to hear sounds as you type." }
+        if !model.enabled { return "Sounds are paused. You can still preview with the space bar above." }
+        if let app = model.secureInputApp { return "\(app) has Secure Input on. Sounds return when it turns off." }
+        return "Works in every app. Thock never records what you type."
+    }
+
+    private func bump() {
+        release?.cancel()
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.08)) { pressed = true }
+        let work = DispatchWorkItem {
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) { pressed = false }
         }
-        if !model.enabled { return "Flip the switch to bring the sound back." }
-        if let app = model.secureInputApp {
-            return "\(app) has Secure Input on (usually a password field), so macOS is hiding keys from every app. Sound comes back when it turns off."
-        }
-        return "Playing \(model.selected.name) on every keystroke, in every app."
+        release = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12, execute: work)
     }
 }
 
-struct StatCard: View {
-    let value: Int
+struct DotGrid: View {
+    var body: some View {
+        Canvas { context, size in
+            for x in stride(from: CGFloat(10), to: size.width, by: 18) {
+                for y in stride(from: CGFloat(8), to: size.height, by: 18) {
+                    context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.5, height: 1.5)), with: .foreground)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+struct MechanicalKeyboard: View {
+    let pressed: Bool
+    let preview: () -> Void
+    private let rows = [
+        ["esc", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⌫"],
+        ["tab", "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", "["],
+        ["⇪", "A", "S", "D", "F", "G", "H", "J", "K", "L", ";", "↵"],
+        ["⇧", "Z", "X", "C", "V", "B", "N", "M", ",", ".", "/", "⇧"],
+    ]
+
+    var body: some View {
+        VStack(spacing: 5) {
+            ForEach(rows.indices, id: \.self) { row in
+                HStack(spacing: 4) {
+                    ForEach(rows[row].indices, id: \.self) { column in
+                        KeyboardKey(label: rows[row][column], accent: row == 0 && column == 0)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+            HStack(spacing: 4) {
+                KeyboardKey(label: "fn").frame(maxWidth: 36)
+                KeyboardKey(label: "⌃").frame(maxWidth: 36)
+                KeyboardKey(label: "⌥").frame(maxWidth: 36)
+                KeyboardKey(label: "⌘").frame(maxWidth: 40)
+                Button(action: preview) {
+                    HStack(spacing: 7) {
+                        Image(systemName: "waveform").font(.system(size: 10, weight: .bold))
+                        Text("thock").font(.bodyText(11, bold: true)).tracking(1)
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).frame(height: 31)
+                    .background(RoundedRectangle(cornerRadius: 5).fill(Color.accent))
+                    .overlay(RoundedRectangle(cornerRadius: 5).strokeBorder(.white.opacity(0.2)))
+                    .compositingGroup()
+                    .shadow(color: Color(hex: 0x1C3DB6), radius: 0, y: pressed ? 1 : 3)
+                    .offset(y: pressed ? 2 : 0)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Preview current sound")
+                .help("Preview current sound")
+                KeyboardKey(label: "⌘").frame(maxWidth: 40)
+                KeyboardKey(label: "←").frame(maxWidth: 36)
+                KeyboardKey(label: "→").frame(maxWidth: 36)
+            }
+        }
+        .padding(12).padding(.bottom, 3)
+        .background(RoundedRectangle(cornerRadius: 13).fill(Color(hex: 0xDCE2EC)))
+        .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(Color(hex: 0xCDD5E1)))
+        .compositingGroup()
+        .shadow(color: Color(hex: 0xB7C2D3), radius: 0, y: 6)
+        .shadow(color: Color.ink.opacity(0.10), radius: 12, y: 13)
+        .rotationEffect(.degrees(-3))
+    }
+}
+
+struct KeyboardKey: View {
     let label: String
+    var accent = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(value, format: .number)
-                .font(.sans(34, .medium))
-                .contentTransition(.numericText(value: Double(value)))
-                .animation(.snappy(duration: 0.2), value: value)
-            Text(label.uppercased()).font(.sans(11.5, .semibold)).tracking(1.1).foregroundStyle(Color.muted)
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .card()
+        Text(label).font(.technical(label.count > 1 ? 8 : 10))
+            .foregroundStyle(accent ? Color.accent : Color(hex: 0x788397))
+            .frame(maxWidth: .infinity).frame(height: 25)
+            .background(RoundedRectangle(cornerRadius: 4).fill(accent ? Color.accentWash : Color.surface))
+            .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Color.white.opacity(0.8)))
+            .compositingGroup()
+            .shadow(color: Color(hex: 0xB9C3D2), radius: 0, y: 2)
+            .accessibilityHidden(true)
     }
 }
 
-struct NowPlaying: View {
+struct SoundInspector: View {
     @EnvironmentObject var model: AppModel
-    @Binding var page: Page
 
     var body: some View {
-        HStack(spacing: 14) {
-            Emoji(sound: model.selected, size: 46)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(model.selected.name).font(.serif(27)).lineLimit(1)
-                Button("Change sound →") { page = .sounds }
-                    .buttonStyle(.plain).font(.sans(13, .medium)).foregroundStyle(Color.muted)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Eyebrow("ON YOUR KEYS")
+                Spacer()
+                Image(systemName: "arrow.down.left").font(.system(size: 11)).foregroundStyle(Color.muted)
             }
-            Spacer(minLength: 0)
+            .padding(.bottom, 20)
+            HStack {
+                SoundGlyph(sound: model.selected, size: 48, selected: true)
+                Spacer()
+                DecorativeWave(seed: model.selected.id, color: .accent).frame(width: 78, height: 30)
+            }
+            .padding(.bottom, 14)
+            Text(model.selected.name).font(.display(27)).lineLimit(1).minimumScaleFactor(0.6)
+            Text(model.selected.blurb).font(.bodyText(12)).foregroundStyle(Color.muted)
+                .lineLimit(2).frame(height: 38, alignment: .top).padding(.top, 3)
+            Spacer(minLength: 12)
+            HStack {
+                Eyebrow("VOLUME")
+                Spacer()
+                Text("\(Int(model.volume * 100))%").font(.technical(11)).foregroundStyle(Color.muted)
+                    .monospacedDigit()
+            }
+            HStack(spacing: 8) {
+                Image(systemName: "speaker.fill").font(.system(size: 10))
+                Slider(value: $model.volume, in: 0...1).accessibilityLabel("Sound volume")
+                Image(systemName: "speaker.wave.3.fill").font(.system(size: 10))
+            }
+            .foregroundStyle(Color.muted).padding(.top, 6).padding(.bottom, 17)
+            Button { model.preview(model.selected) } label: {
+                Label("Preview sound", systemImage: "play.fill").frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PrimaryButton())
         }
-        .padding(20)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .card()
+        .padding(22).frame(height: 386)
+        .panel()
     }
 }
 
-struct SoundChip: View {
+struct SoundTile: View {
     @EnvironmentObject var model: AppModel
     let sound: Sound
 
     var body: some View {
-        let on = model.selectedID == sound.id
+        let selected = model.selectedID == sound.id
         Button { model.select(sound) } label: {
-            HStack(spacing: 7) {
-                Text(sound.emoji)
-                Text(sound.name).font(.sans(13.5, .medium)).lineLimit(1)
+            VStack(spacing: 11) {
+                Image(systemName: sound.symbol).font(.system(size: 21, weight: .regular)).frame(height: 23)
+                Text(sound.name).font(.bodyText(11, bold: true)).lineLimit(1).minimumScaleFactor(0.8)
             }
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
-            .background(Capsule().fill(on ? Color.ink : Color.well))
-            .overlay(Capsule().strokeBorder(on ? Color.ink : Color.line))
-            .foregroundStyle(on ? Color.white : Color.ink)
-            .contentShape(Capsule())
+            .foregroundStyle(selected ? Color.accent : Color.muted)
+            .frame(maxWidth: .infinity).frame(height: 83)
+            .background(RoundedRectangle(cornerRadius: 12).fill(selected ? Color.accentWash : Color.surface))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? Color.accent.opacity(0.65) : Color.line))
+            .overlay(alignment: .topTrailing) {
+                if selected { Circle().fill(Color.accent).frame(width: 5, height: 5).padding(9) }
+            }
         }
-        .buttonStyle(.plain)
+        .buttonStyle(QuietButton())
+        .accessibilityLabel("\(sound.name)\(selected ? ", selected" : "")")
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
-// MARK: Sounds
+// MARK: Sound library
+
+enum SoundCategory: String, CaseIterable {
+    case all = "All sounds", classics = "Essentials", playful = "Playful", custom = "Imported"
+}
 
 struct SoundsPage: View {
     @EnvironmentObject var model: AppModel
+    @State private var category: SoundCategory = .all
     @State private var importing = false
     @State private var dropping = false
     @State private var error: String?
 
+    private var sounds: [Sound] {
+        switch category {
+        case .all: model.allSounds
+        case .classics: Presets.classics
+        case .playful: Presets.silly
+        case .custom: model.custom
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 34) {
-            PageHeader(title: "Sounds", subtitle: "Pick what plays when you press a key. Hit ▶ to preview.")
-            section("Classics") { ForEach(Presets.classics) { SoundCard(sound: $0) } }
-            section("Just for fun") { ForEach(Presets.silly) { SoundCard(sound: $0) } }
-            section("Your sounds") {
-                ForEach(model.custom) { SoundCard(sound: $0) }
-                AddSoundCard(dropping: dropping).onTapGesture { importing = true }
+        VStack(alignment: .leading, spacing: 24) {
+            HStack(alignment: .center) {
+                PageHeader(title: "A sound for every mood.", subtitle: "From satisfying clicks to the slightly ridiculous. Make it yours.")
+                Spacer()
+                Button { importing = true } label: { Label("Import audio", systemImage: "plus") }
+                    .buttonStyle(PrimaryButton())
             }
+            HStack(spacing: 6) {
+                ForEach(SoundCategory.allCases, id: \.self) { item in
+                    Button { category = item } label: {
+                        Text(item.rawValue).font(.bodyText(12, bold: true))
+                            .padding(.horizontal, 15).padding(.vertical, 9)
+                            .foregroundStyle(category == item ? Color.surface : Color.muted)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(category == item ? Color.ink : .clear))
+                    }
+                    .buttonStyle(QuietButton())
+                    .accessibilityAddTraits(category == item ? .isSelected : [])
+                }
+                Spacer()
+                Text("\(sounds.count) SOUNDS").font(.technical(10)).foregroundStyle(Color.muted)
+            }
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)], spacing: 14) {
+                ForEach(sounds) { SoundCard(sound: $0) }
+            }
+            Button { importing = true } label: {
+                HStack(spacing: 16) {
+                    Image(systemName: "waveform.badge.plus").font(.system(size: 23)).foregroundStyle(Color.accent)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(model.custom.isEmpty ? "Got a sound of your own?" : "Make room for one more.")
+                            .font(.bodyText(14, bold: true)).foregroundStyle(Color.ink)
+                        Text("Drop an audio file here, or browse to add it to your collection.")
+                            .font(.bodyText(12)).foregroundStyle(Color.muted)
+                    }
+                    Spacer()
+                    Image(systemName: "arrow.up.right").foregroundStyle(Color.accent)
+                }
+                .padding(22).frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 13).fill(dropping ? Color.accentWash : Color.surface.opacity(0.5)))
+                .overlay(RoundedRectangle(cornerRadius: 13)
+                    .strokeBorder(dropping ? Color.accent : Color(hex: 0xB6C2D6), style: StrokeStyle(lineWidth: 1, dash: [5, 4])))
+            }
+            .buttonStyle(QuietButton())
+            .accessibilityLabel("Import your own sound")
+            Text("Your sounds stay on this Mac. Short clips work best.")
+                .font(.bodyText(11)).foregroundStyle(Color.muted)
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.audio], allowsMultipleSelection: true) { result in
-            add((try? result.get()) ?? [])
+            switch result {
+            case .success(let urls): add(urls)
+            case .failure(let failure): error = failure.localizedDescription
+            }
         }
         .dropDestination(for: URL.self) { urls, _ in
+            guard !urls.isEmpty else { return false }
             add(urls)
             return true
         } isTargeted: { dropping = $0 }
         .alert("Couldn't add that sound", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-            Button("OK") {}
-        } message: {
-            Text(error ?? "")
-        }
-    }
-
-    private func section(_ title: String, @ViewBuilder cards: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            SectionTitle(title)
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 178), spacing: 14)], spacing: 14, content: cards)
-        }
+            Button("OK") { error = nil }
+        } message: { Text(error ?? "") }
     }
 
     private func add(_ urls: [URL]) {
         for url in urls {
-            do { try model.importSound(url) } catch { self.error = "\(url.lastPathComponent): \(error.localizedDescription)" }
+            do {
+                try model.importSound(url)
+                category = .custom
+            } catch { self.error = "\(url.lastPathComponent): \(error.localizedDescription)" }
         }
     }
 }
@@ -364,72 +566,45 @@ struct SoundsPage: View {
 struct SoundCard: View {
     @EnvironmentObject var model: AppModel
     let sound: Sound
-    @State private var hover = false
 
     var body: some View {
-        let on = model.selectedID == sound.id
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .top) {
-                Emoji(sound: sound, size: 44)
-                Spacer()
-                if on {
-                    Tag("In use")
-                } else if sound.isCustom && hover {
+        let selected = model.selectedID == sound.id
+        HStack(spacing: 0) {
+            Button { model.select(sound) } label: {
+                HStack(spacing: 14) {
+                    SoundGlyph(sound: sound, size: 46, selected: selected)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 8) {
+                            Text(sound.name).font(.bodyText(15, bold: true)).lineLimit(1)
+                            if selected {
+                                Image(systemName: "checkmark.circle.fill").font(.system(size: 12)).foregroundStyle(Color.accent)
+                            }
+                        }
+                        Text(sound.blurb).font(.bodyText(11)).foregroundStyle(Color.muted).lineLimit(2)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading).frame(height: 70)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(QuietButton())
+            .accessibilityLabel("Select \(sound.name)\(selected ? ", selected" : "")")
+            .accessibilityAddTraits(selected ? .isSelected : [])
+            HStack(spacing: 7) {
+                if sound.isCustom {
                     IconButton(symbol: "trash", label: "Remove \(sound.name)") { model.remove(sound) }
                 }
-            }
-            Spacer(minLength: 14)
-            Text(sound.name).font(.serif(27)).lineLimit(1)
-            HStack(alignment: .bottom) {
-                Text(sound.blurb).font(.sans(13)).foregroundStyle(Color.muted).lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 8)
                 IconButton(symbol: "play.fill", label: "Preview \(sound.name)") { model.preview(sound) }
             }
-            .padding(.top, 2)
+            .padding(.leading, 10)
         }
-        .padding(16)
-        .frame(height: 172)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(hover && !on ? Color.well : Color.paper))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(on ? Color.ink : Color.line, lineWidth: on ? 1.5 : 1))
-        .contentShape(RoundedRectangle(cornerRadius: 12))
-        .onTapGesture { model.select(sound) }
-        .onHover { hover = $0 }
-        .animation(.easeOut(duration: 0.12), value: hover)
+        .padding(.horizontal, 17).padding(.vertical, 9)
+        .background(RoundedRectangle(cornerRadius: 13).fill(selected ? Color.accentWash.opacity(0.6) : Color.surface))
+        .overlay(RoundedRectangle(cornerRadius: 13).strokeBorder(selected ? Color.accent.opacity(0.6) : Color.line))
         .contextMenu {
+            Button("Preview") { model.preview(sound) }
             if sound.isCustom { Button("Remove", role: .destructive) { model.remove(sound) } }
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(sound.name)\(on ? ", in use" : "")")
-        .accessibilityAddTraits(.isButton)
-        .accessibilityAction { model.select(sound) }
-    }
-}
-
-struct AddSoundCard: View {
-    let dropping: Bool
-    @State private var hover = false
-
-    var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "plus").font(.system(size: 16, weight: .semibold))
-                .frame(width: 44, height: 44).background(Circle().fill(Color.lavender))
-            Text("Add a sound").font(.serif(25))
-            Text("Drop an audio file, or click to browse").font(.sans(12.5)).foregroundStyle(Color.muted)
-                .multilineTextAlignment(.center)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .frame(height: 172)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(dropping ? Color.lavender.opacity(0.35) : hover ? Color.well : Color.paper))
-        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .strokeBorder(dropping ? Color.plum : Color.ink.opacity(0.28), style: StrokeStyle(lineWidth: 1.2, dash: [5, 4])))
-        .contentShape(Rectangle())
-        .onHover { hover = $0 }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isButton)
     }
 }
 
@@ -439,47 +614,50 @@ struct SettingsPage: View {
     @EnvironmentObject var model: AppModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 30) {
-            PageHeader(title: "Settings", subtitle: nil)
-            SettingsGroup("Sound") {
-                SettingsRow("Volume", "How loud each keystroke plays") {
-                    HStack(spacing: 10) {
-                        Image(systemName: "speaker.fill")
-                        Slider(value: $model.volume, in: 0...1).frame(width: 180).tint(Color.ink)
-                        Image(systemName: "speaker.wave.3.fill")
+        VStack(alignment: .leading, spacing: 26) {
+            PageHeader(title: "A few fine adjustments.", subtitle: "Set it once. Get back to doing your thing.")
+            SettingsGroup(title: "Sound & keys", subtitle: "Make every press feel right.", symbol: "slider.horizontal.3") {
+                SettingsRow("Volume", "The loudness of each keystroke") {
+                    HStack(spacing: 12) {
+                        Slider(value: $model.volume, in: 0...1).frame(width: 140).accessibilityLabel("Sound volume")
+                        Text("\(Int(model.volume * 100))%").font(.technical(11)).frame(width: 36, alignment: .trailing)
                     }
-                    .font(.system(size: 11)).foregroundStyle(Color.muted)
                 }
-            }
-            SettingsGroup("Keys") {
-                SettingsRow("Modifier keys", "Also play for ⌘ ⌥ ⌃ ⇧ and Fn") {
-                    Toggle("Modifier keys", isOn: $model.modifiers).toggleStyle(PillToggle())
+                RowDivider()
+                SettingsRow("Modifier keys", "Play sounds for ⌘, ⌥, ⌃, ⇧ and Fn") {
+                    Toggle("Modifier keys", isOn: $model.modifiers).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
                 RowDivider()
                 SettingsRow("Key repeat", "Keep playing while a key is held down") {
-                    Toggle("Key repeat", isOn: $model.repeats).toggleStyle(PillToggle())
+                    Toggle("Key repeat", isOn: $model.repeats).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
             }
-            SettingsGroup("App") {
-                SettingsRow("Typing pill", "A little pill at the bottom of the screen that dances while you type") {
-                    Toggle("Typing pill", isOn: $model.showPill).toggleStyle(PillToggle())
+            SettingsGroup(title: "At home on your Mac", subtitle: "Little details. Your call.", symbol: "macwindow") {
+                SettingsRow("Typing indicator", "A tiny sound meter at the bottom of your screen") {
+                    Toggle("Typing indicator", isOn: $model.showPill).labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
                 RowDivider()
-                SettingsRow("Open at login", "Start Thock quietly in the menu bar") {
+                SettingsRow("Open at login", "Have Thock ready when you start your Mac") {
                     Toggle("Open at login", isOn: Binding(get: { model.openAtLogin }, set: model.setOpenAtLogin))
-                        .toggleStyle(PillToggle())
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
-                RowDivider()
+            }
+            SettingsGroup(title: "Keyboard access", subtitle: "Private by design.", symbol: "lock.shield") {
                 SettingsRow("Input Monitoring", model.listening
-                            ? "Allowed. Thock can hear key presses in every app."
-                            : "Not allowed yet, so key presses stay silent.") {
+                            ? "Allowed. Key presses can trigger sounds in any app."
+                            : "Allow access to play sounds outside the playground preview.") {
                     if model.listening {
                         Label("Allowed", systemImage: "checkmark.circle.fill")
-                            .font(.sans(13.5, .semibold)).foregroundStyle(Color(hex: 0x2F9E6A))
+                            .font(.bodyText(12, bold: true)).foregroundStyle(Color.positive)
                     } else {
-                        Button("Open System Settings") { model.requestAccess() }.buttonStyle(PrimaryButton())
+                        Button("Allow access") { model.requestAccess() }.buttonStyle(SecondaryButton())
                     }
                 }
+            }
+            HStack(spacing: 7) {
+                BrandMark().scaleEffect(0.6).frame(width: 20, height: 20)
+                Text("Thock 1.0").font(.bodyText(11, bold: true))
+                Text("/  A little joy in every keystroke.").font(.bodyText(11)).foregroundStyle(Color.muted)
             }
         }
     }
@@ -487,18 +665,19 @@ struct SettingsPage: View {
 
 struct SettingsGroup<Content: View>: View {
     let title: String
+    let subtitle: String
+    let symbol: String
     @ViewBuilder let content: Content
 
-    init(_ title: String, @ViewBuilder content: () -> Content) {
-        self.title = title
-        self.content = content()
-    }
-
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SectionTitle(title)
-            VStack(spacing: 0) { content }
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.well))
+        HStack(alignment: .top, spacing: 26) {
+            VStack(alignment: .leading, spacing: 9) {
+                Image(systemName: symbol).font(.system(size: 20)).foregroundStyle(Color.accent).padding(.bottom, 5)
+                Text(title).font(.bodyText(15, bold: true))
+                Text(subtitle).font(.bodyText(12)).foregroundStyle(Color.muted)
+            }
+            .frame(width: 196, alignment: .leading).padding(.top, 15)
+            VStack(spacing: 0) { content }.frame(maxWidth: .infinity).panel(radius: 13)
         }
     }
 }
@@ -515,62 +694,76 @@ struct SettingsRow<Control: View>: View {
     }
 
     var body: some View {
-        HStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title).font(.sans(15, .semibold))
-                Text(subtitle).font(.sans(13.5)).foregroundStyle(Color.muted)
+        HStack(spacing: 18) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.bodyText(13, bold: true))
+                Text(subtitle).font(.bodyText(11)).foregroundStyle(Color.muted).fixedSize(horizontal: false, vertical: true)
             }
-            Spacer()
+            Spacer(minLength: 10)
             control
         }
-        .padding(.horizontal, 22).padding(.vertical, 16)
+        .padding(.horizontal, 20).padding(.vertical, 17)
     }
 }
 
 struct RowDivider: View {
-    var body: some View { Rectangle().fill(Color.line).frame(height: 1).padding(.horizontal, 22) }
+    var body: some View { Rectangle().fill(Color.line).frame(height: 1).padding(.horizontal, 20) }
 }
 
-// MARK: Bits
+// MARK: Shared controls
 
 struct PageHeader: View {
     let title: String
-    let subtitle: String?
+    let subtitle: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title).font(.serif(46))
-            if let subtitle { Text(subtitle).font(.sans(15)).foregroundStyle(Color.muted) }
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title).font(.display(31)).tracking(-1)
+            Text(subtitle).font(.bodyText(13)).foregroundStyle(Color.muted)
         }
     }
 }
 
-struct SectionTitle: View {
+struct Eyebrow: View {
     let text: String
     init(_ text: String) { self.text = text }
-    var body: some View { Text(text).font(.sans(15, .semibold)) }
-}
-
-struct Tag: View {
-    let text: String
-    init(_ text: String) { self.text = text }
-
     var body: some View {
-        Text(text).font(.sans(11.5, .semibold)).foregroundStyle(Color.plum)
-            .padding(.horizontal, 8).padding(.vertical, 3)
-            .background(RoundedRectangle(cornerRadius: 5).fill(Color.lavender.opacity(0.75)))
+        Text(text).font(.technical(9)).tracking(1.2).foregroundStyle(Color.muted)
     }
 }
 
-struct Emoji: View {
+struct SoundGlyph: View {
     let sound: Sound
-    var size: CGFloat = 44
+    let size: CGFloat
+    var selected = false
 
     var body: some View {
-        Text(sound.emoji).font(.system(size: size * 0.48))
+        Image(systemName: sound.symbol).font(.system(size: size * 0.45, weight: .regular))
+            .foregroundStyle(selected ? Color.accent : Color.ink)
             .frame(width: size, height: size)
-            .background(Circle().fill(Color(hex: sound.tint)))
+            .background(RoundedRectangle(cornerRadius: size * 0.24).fill(selected ? Color.accentWash : Color.canvas))
             .accessibilityHidden(true)
+    }
+}
+
+/// A decorative sound motif, not a measured waveform or recording indicator.
+struct DecorativeWave: View {
+    let seed: String
+    let color: Color
+
+    var body: some View {
+        let offset = seed.utf8.reduce(0) { $0 + Int($1) }
+        GeometryReader { geo in
+            HStack(spacing: 3) {
+                ForEach(0..<15) { i in
+                    let height = 0.18 + abs(sin(Double(i * 7 + offset) * 0.37)) * 0.82
+                    Capsule().fill(color.opacity(i % 3 == 0 ? 0.45 : 0.8))
+                        .frame(width: 2, height: geo.size.height * height)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .accessibilityHidden(true)
     }
 }
 
@@ -578,93 +771,98 @@ struct IconButton: View {
     let symbol: String
     let label: String
     let action: () -> Void
-    @State private var hover = false
 
     var body: some View {
         Button(action: action) {
-            Image(systemName: symbol).font(.system(size: 11, weight: .bold))
-                .frame(width: 30, height: 30)
-                .background(Circle().fill(hover ? Color.ink : Color.well))
-                .overlay(Circle().strokeBorder(Color.line))
-                .foregroundStyle(hover ? Color.white : Color.ink)
+            Image(systemName: symbol).font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(Color.accent).frame(width: 32, height: 32)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentWash))
         }
-        .buttonStyle(.plain)
-        .onHover { hover = $0 }
-        .accessibilityLabel(label)
+        .buttonStyle(QuietButton()).accessibilityLabel(label).help(label)
     }
 }
 
-/// Wispr-style black pill switch.
-struct PillToggle: ToggleStyle {
-    var on: Color = .ink
-    var knob: Color = .white
+struct QuietButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        QuietButtonContent(content: configuration.label, pressed: configuration.isPressed)
+    }
+}
 
-    func makeBody(configuration c: Configuration) -> some View {
-        Capsule()
-            .fill(c.isOn ? on : Color(hex: 0xD9D6CE))
-            .frame(width: 42, height: 25)
-            .overlay(alignment: c.isOn ? .trailing : .leading) {
-                Circle().fill(c.isOn ? knob : .white).padding(3).shadow(color: .black.opacity(0.18), radius: 1, y: 1)
-            }
-            .contentShape(Capsule())
-            .onTapGesture { withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { c.isOn.toggle() } }
-            .accessibilityRepresentation { Toggle(isOn: c.$isOn) { c.label } }
+private struct QuietButtonContent<Content: View>: View {
+    let content: Content
+    let pressed: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var hovering = false
+
+    var body: some View {
+        content
+            .opacity(pressed ? 0.65 : hovering ? 0.8 : 1)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: pressed)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.12), value: hovering)
+            .contentShape(Rectangle())
+            .onHover { hovering = $0 }
     }
 }
 
 struct PrimaryButton: ButtonStyle {
-    func makeBody(configuration c: Configuration) -> some View {
-        c.label
-            .font(.sans(14, .semibold)).foregroundStyle(Color.ink)
-            .padding(.horizontal, 16).padding(.vertical, 9)
-            .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.lavender))
-            .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).strokeBorder(Color.ink, lineWidth: 1.5))
-            .scaleEffect(c.isPressed ? 0.97 : 1)
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.bodyText(12, bold: true)).foregroundStyle(.white)
+            .padding(.horizontal, 16).frame(height: 39)
+            .background(RoundedRectangle(cornerRadius: 9).fill(configuration.isPressed ? Color.accent.opacity(0.8) : Color.accent))
     }
 }
 
-// MARK: Floating pill (Wispr's "Flow bar", but it dances to your typing)
+struct SecondaryButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.bodyText(12, bold: true)).foregroundStyle(Color.accent)
+            .padding(.horizontal, 13).frame(height: 34)
+            .background(RoundedRectangle(cornerRadius: 8).fill(Color.accentWash))
+            .opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+// MARK: Floating typing meter
 
 struct PillView: View {
     @EnvironmentObject var model: AppModel
-    @State private var levels = Array(repeating: CGFloat(0.15), count: 9)
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var awake = false
     @State private var sleep: DispatchWorkItem?
 
     var body: some View {
         HStack(spacing: 10) {
-            Text(model.selected.emoji).font(.system(size: 13))
-            HStack(spacing: 3) {
-                ForEach(levels.indices, id: \.self) { i in
-                    Capsule().fill(.white).frame(width: 3, height: 3 + 15 * levels[i])
+            Image(systemName: model.selected.symbol).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.accent)
+            HStack(alignment: .center, spacing: 3) {
+                ForEach(0..<7) { i in
+                    RoundedRectangle(cornerRadius: 1.5).fill(Color.accent.opacity(i % 2 == 0 ? 1 : 0.5))
+                        .frame(width: 3, height: awake && !reduceMotion ? CGFloat(5 + (i * 7 + model.pulse * 3) % 14) : 8)
                 }
             }
+            Rectangle().fill(Color.line).frame(width: 1, height: 13)
+            Text(model.selected.name).font(.bodyText(10, bold: true)).lineLimit(1).frame(maxWidth: 70)
         }
-        .padding(.horizontal, 14)
-        .frame(height: 32)
-        .background(Capsule().fill(Color.ink))
-        .overlay(Capsule().strokeBorder(.white.opacity(0.18)))
-        .shadow(color: .black.opacity(0.25), radius: 8, y: 3)
-        .scaleEffect(awake ? 1 : 0.5, anchor: .bottom)
+        .padding(.horizontal, 12).frame(height: 34)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.surface))
+        .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(Color.line))
+        .shadow(color: Color.ink.opacity(0.12), radius: 8, y: 3)
+        .offset(y: awake || reduceMotion ? 0 : 6)
         .opacity(awake && model.pillVisible ? 1 : 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         .padding(.bottom, 10)
+        .foregroundStyle(Color.ink).preferredColorScheme(.light)
+        .accessibilityHidden(true)
         .onChange(of: model.pulse) { bump() }
+        .onDisappear { sleep?.cancel() }
     }
 
     private func bump() {
-        withAnimation(.spring(response: 0.22, dampingFraction: 0.5)) {
-            awake = true
-            levels = levels.indices.map { i in
-                let center = 1 - abs(CGFloat(i) - 4) / 5   // taller in the middle, like a voice
-                return max(0.15, center * .random(in: 0.5...1))
-            }
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-            withAnimation(.easeOut(duration: 0.4)) { levels = levels.map { max(0.12, $0 * 0.3) } }
-        }
+        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.16)) { awake = true }
         sleep?.cancel()
-        let work = DispatchWorkItem { withAnimation(.easeInOut(duration: 0.3)) { awake = false } }
+        let work = DispatchWorkItem {
+            withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { awake = false }
+        }
         sleep = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4, execute: work)
     }
