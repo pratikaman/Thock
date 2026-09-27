@@ -148,8 +148,9 @@ struct StatusChip: View {
     var body: some View {
         let (label, dot): (String, Color) =
             !model.listening ? ("Needs permission", Color(hex: 0xE0663C))
-            : model.enabled ? ("Listening", Color(hex: 0x2F9E6A))
-            : ("Paused", Color(hex: 0xB8B5AD))
+            : !model.enabled ? ("Paused", Color(hex: 0xB8B5AD))
+            : model.secureInputApp != nil ? ("Hidden by Secure Input", Color(hex: 0xE3A13B))
+            : ("Listening", Color(hex: 0x2F9E6A))
         Button {
             if model.listening { model.enabled.toggle() } else { model.requestAccess() }
         } label: {
@@ -243,9 +244,14 @@ struct Hero: View {
     }
 
     private var detail: String {
-        !model.listening ? "macOS asks you to allow Input Monitoring. Thock only notices that a key went down, never what you typed."
-            : model.enabled ? "Playing \(model.selected.name) on every keystroke, in every app."
-            : "Flip the switch to bring the sound back."
+        if !model.listening {
+            return "macOS asks you to allow Input Monitoring. Thock only notices that a key went down, never what you typed."
+        }
+        if !model.enabled { return "Flip the switch to bring the sound back." }
+        if let app = model.secureInputApp {
+            return "\(app) has Secure Input on (usually a password field), so macOS is hiding keys from every app. Sound comes back when it turns off."
+        }
+        return "Playing \(model.selected.name) on every keystroke, in every app."
     }
 }
 

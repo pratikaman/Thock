@@ -48,7 +48,11 @@ final class AppModel: ObservableObject {
     private let defaults = UserDefaults.standard
     private var clips: [String: AVAudioPCMBuffer] = [:]
     private var retry: Timer?
+    private var health: Timer?
     private var day: String
+    /// Keeps App Nap from throttling us while the window is hidden; typing sounds are latency-critical.
+    private let activity = ProcessInfo.processInfo.beginActivity(
+        options: [.userInitiatedAllowingIdleSystemSleep, .latencyCritical], reason: "Playing keystroke sounds")
 
     @Published var enabled: Bool {
         didSet { defaults.set(enabled, forKey: "enabled"); tap.active = enabled; enabled ? player.start() : player.pause() }
@@ -71,6 +75,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var openAtLogin = SMAppService.mainApp.status == .enabled
     @Published private(set) var custom: [Sound] = []
     @Published private(set) var listening = false
+    /// Name of the app holding Secure Input (password fields do this), which silences every key.
+    @Published private(set) var secureInputApp: String?
     @Published private(set) var today: Int
     @Published private(set) var total: Int
     @Published private(set) var pulse = 0
@@ -170,8 +176,18 @@ final class AppModel: ObservableObject {
             listening = true
             retry?.invalidate()
             retry = nil
+            health = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.checkHealth() }
         } else if retry == nil {
             retry = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in self?.startListening() }
+        }
+    }
+
+    private func checkHealth() {
+        tap.ensureEnabled()
+        let owner = KeyTap.secureInputOwner()
+        if owner != secureInputApp {
+            if let owner { log.info("secure input on in \(owner, privacy: .public), keys are hidden") }
+            secureInputApp = owner
         }
     }
 

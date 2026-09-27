@@ -1,5 +1,10 @@
+import AppKit
 import AVFoundation
 import CoreGraphics
+import os
+
+/// `log stream --predicate 'subsystem == "com.pratikaman.thock"'` to watch it live.
+let log = Logger(subsystem: "com.pratikaman.thock", category: "engine")
 
 enum ClipError: LocalizedError {
     case unreadable, silent
@@ -70,11 +75,13 @@ final class Player {
     private var voices: [AVAudioPlayerNode] = []
     private var next = 0
     private var current: AVAudioPCMBuffer?
-    private let lock = NSLock()
+    /// Every engine call runs here, never on the key-tap thread: while the output device is
+    /// switching, `engine.start()` can block for a long time, and macOS drops keys for a stalled tap.
+    private let queue = DispatchQueue(label: "Thock audio", qos: .userInteractive)
 
     var buffer: AVAudioPCMBuffer? {
-        get { lock.withLock { current } }
-        set { lock.withLock { current = newValue } }
+        get { queue.sync { current } }
+        set { queue.async { self.current = newValue } }
     }
 
     var volume: Float {
@@ -89,28 +96,40 @@ final class Player {
             engine.connect(v, to: engine.mainMixerNode, format: Clip.format)
             voices.append(v)
         }
-        // Switching outputs (AirPods, speakers) stops the engine, so bring it straight back.
+        // Switching outputs (AirPods, speakers, a mic turning on) stops the engine, so bring it back.
         NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil) { [weak self] _ in
+            log.info("audio configuration changed, restarting")
             self?.start()
         }
     }
 
-    func start() { lock.withLock { startLocked() } }
-    func pause() { lock.withLock { engine.pause() } }
+    func start() { queue.async { self.restart(attempt: 0) } }
+    func pause() { queue.async { self.engine.pause() } }
 
-    /// Called from the key-tap thread and from the UI.
+    /// Called from the key-tap thread and from the UI; returns immediately.
     func play(_ clip: AVAudioPCMBuffer? = nil) {
-        lock.lock(); defer { lock.unlock() }
-        guard let clip = clip ?? current else { return }
-        if !engine.isRunning { startLocked() }
-        let v = voices[next]
-        next = (next + 1) % voices.count
-        v.scheduleBuffer(clip, at: nil, options: .interrupts)
+        queue.async { [self] in
+            guard let clip = clip ?? current else { return }
+            if !engine.isRunning { restart(attempt: 0) }
+            guard engine.isRunning else { return }
+            let v = voices[next]
+            next = (next + 1) % voices.count
+            if !v.isPlaying { v.play() }
+            v.scheduleBuffer(clip, at: nil, options: .interrupts)
+        }
     }
 
-    private func startLocked() {
-        guard (try? engine.start()) != nil else { return }
-        voices.forEach { $0.play() }
+    /// A device mid-switch can refuse to start, so keep trying for a couple of seconds.
+    private func restart(attempt: Int) {
+        guard !engine.isRunning else { return }
+        do {
+            try engine.start()
+            voices.forEach { $0.play() }
+            if attempt > 0 { log.info("audio engine started after \(attempt) retries") }
+        } catch {
+            log.error("audio engine failed to start (attempt \(attempt)): \(error.localizedDescription, privacy: .public)")
+            if attempt < 10 { queue.asyncAfter(deadline: .now() + 0.25) { self.restart(attempt: attempt + 1) } }
+        }
     }
 }
 
@@ -168,8 +187,23 @@ final class KeyTap {
         return true
     }
 
+    /// macOS can switch a tap off without always telling us, so the model checks this every few seconds.
+    func ensureEnabled() {
+        guard let tap, !CGEvent.tapIsEnabled(tap: tap) else { return }
+        log.error("key tap was disabled, re-enabling")
+        CGEvent.tapEnable(tap: tap, enable: true)
+    }
+
+    /// When a password field or an app turns on Secure Input, macOS hides every key from event taps.
+    static func secureInputOwner() -> String? {
+        guard let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+              let pid = session["kCGSSessionSecureInputPID"] as? Int32, pid != 0 else { return nil }
+        return NSRunningApplication(processIdentifier: pid)?.localizedName ?? "another app"
+    }
+
     private func handle(_ type: CGEventType, _ event: CGEvent) {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            log.error("key tap disabled by \(type == .tapDisabledByTimeout ? "timeout" : "user input", privacy: .public), re-enabling")
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return
         }
