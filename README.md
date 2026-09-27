@@ -12,6 +12,17 @@ Copy this into any AI agent that can use your terminal (Claude Code, Codex, Curs
 Install Thock on my Mac from https://github.com/pratikaman/Thock. Clone it, run ./build.sh --install, then open /Applications/Thock.app. If swiftc is missing, run xcode-select --install first and wait for me to finish. Once it's open, tell me to allow Thock under System Settings → Privacy & Security → Input Monitoring. Don't change privacy settings yourself.
 ```
 
+### Or install it yourself
+
+1. Open **Terminal** and run `xcode-select --install` to get Apple's free developer tools. Skip this if you already have them.
+2. Download Thock and build it:
+   ```sh
+   git clone https://github.com/pratikaman/Thock.git
+   cd Thock
+   ./build.sh --install
+   ```
+3. Open **Thock** from your Applications folder.
+
 Needs macOS 14 or newer.
 
 ## Using it
