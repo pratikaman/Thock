@@ -1,4 +1,4 @@
-<p align="center"><img src="Resources/AppIcon.png" width="128" alt="Thock app icon"></p>
+<p align="center"><img src="Resources/AppIcon.png" width="128" height="128" alt="Thock's blue sound-bar app icon"></p>
 
 <h1 align="center">Thock</h1>
 
@@ -29,6 +29,6 @@ Needs macOS 14 or newer.
 
 - When asked, allow Thock under **Input Monitoring**. It only knows that a key was pressed, never what you typed.
 - Choose a sound on the **Sounds** page, or drop in your own.
-- Thock lives in the menu bar, so you can pause it or switch sounds at any time.
+- Click Thock's sound-bar icon in the menu bar to switch sounds, preview a clip, adjust the volume, or pause playback.
 
-Sounds from [BigSoundBank](https://bigsoundbank.com), free to use. Fonts: Figtree and EB Garamond.
+Sounds from [BigSoundBank](https://bigsoundbank.com), free to use. The interface uses Avenir Next and Menlo, included with macOS. Bundled font licenses are in `Resources/Fonts`.

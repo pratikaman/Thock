@@ -16,7 +16,7 @@ compiles `Sources/*.swift` directly with `swiftc` in Swift 5 mode.
   tap, and the `SelfTest` runner.
 - `Sources/Views.swift`: theme helpers and SwiftUI pages, controls, menu, and pill.
 - `Resources/`: bundled CAF sounds, Figtree/EB Garamond fonts and licenses, and icons.
-- `Tools/icon.swift`: app icon renderer.
+- `Tools/icon.swift`: generates the macOS icon set and README PNG from the blue sound-bar mark.
 - `Info.plist`: bundle identity, version, minimum OS, and font registration.
 - `build.sh`: compilation, resource copying, self-tests, signing, and optional install.
 
@@ -61,6 +61,9 @@ log stream --predicate 'subsystem == "com.pratikaman.thock"'
 - The UI uses a light keyboard-workbench theme: cool gray/white surfaces, cobalt
   accents, Avenir Next headings/body text, and Menlo labels. Keep top navigation,
   the keyboard playground, and the compact typing meter visually consistent.
+- The menu bar uses a custom SwiftUI window and a template version of the sound-bar
+  icon. Keep `BrandMark`, `MenuBarIcon`, and `Tools/icon.swift` visually aligned;
+  the build regenerates the app and README icons when the renderer changes.
 - Preserve macOS 14 compatibility and the direct `swiftc` build unless a task
   explicitly calls for a build-system change.
 - Keep the event-tap callback fast. Queue audio work on the player's dedicated

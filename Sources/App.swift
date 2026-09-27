@@ -23,8 +23,18 @@ struct ThockApp: App {
         MenuBarExtra {
             MenuContent().environmentObject(model)
         } label: {
-            Image(systemName: model.enabled ? "keyboard.fill" : "keyboard")
+            Image(nsImage: model.enabled && model.listening && model.secureInputApp == nil
+                  ? MenuBarIcon.active : MenuBarIcon.paused)
+                .accessibilityLabel(menuBarStatus)
+                .help(menuBarStatus)
         }
+        .menuBarExtraStyle(.window)
+    }
+
+    private var menuBarStatus: String {
+        if !model.listening { return "Thock, keyboard access needed" }
+        if !model.enabled { return "Thock, sound paused" }
+        return model.secureInputApp == nil ? "Thock, sound on" : "Thock, sounds hidden by Secure Input"
     }
 }
 

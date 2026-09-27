@@ -446,16 +446,18 @@ struct SoundInspector: View {
 struct SoundTile: View {
     @EnvironmentObject var model: AppModel
     let sound: Sound
+    var compact = false
 
     var body: some View {
         let selected = model.selectedID == sound.id
         Button { model.select(sound) } label: {
-            VStack(spacing: 11) {
-                Image(systemName: sound.symbol).font(.system(size: 21, weight: .regular)).frame(height: 23)
-                Text(sound.name).font(.bodyText(11, bold: true)).lineLimit(1).minimumScaleFactor(0.8)
+            VStack(spacing: compact ? 7 : 11) {
+                Image(systemName: sound.symbol).font(.system(size: compact ? 18 : 21, weight: .regular)).frame(height: 23)
+                Text(sound.name).font(.bodyText(compact ? 10 : 11, bold: true)).lineLimit(1).minimumScaleFactor(0.8)
+                    .padding(.horizontal, compact ? 6 : 4)
             }
             .foregroundStyle(selected ? Color.accent : Color.muted)
-            .frame(maxWidth: .infinity).frame(height: 83)
+            .frame(maxWidth: .infinity).frame(height: compact ? 62 : 83)
             .background(RoundedRectangle(cornerRadius: 12).fill(selected ? Color.accentWash : Color.surface))
             .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? Color.accent.opacity(0.65) : Color.line))
             .overlay(alignment: .topTrailing) {
@@ -465,6 +467,7 @@ struct SoundTile: View {
         .buttonStyle(QuietButton())
         .accessibilityLabel("\(sound.name)\(selected ? ", selected" : "")")
         .accessibilityAddTraits(selected ? .isSelected : [])
+        .help(sound.name)
     }
 }
 
@@ -870,24 +873,110 @@ struct PillView: View {
 
 // MARK: Menu bar
 
+/// Template artwork lets macOS choose the correct color for any menu bar background.
+enum MenuBarIcon {
+    static let active = make(paused: false)
+    static let paused = make(paused: true)
+
+    private static func make(paused: Bool) -> NSImage {
+        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { _ in
+            NSColor.black.set()
+            for (index, height) in [10.0, 18.0, 13.0].enumerated() {
+                let rect = NSRect(x: 2.25 + CGFloat(index) * 5.25, y: 2.25, width: 3, height: height * 0.75)
+                let bar = NSBezierPath(roundedRect: paused ? rect.insetBy(dx: 0.5, dy: 0.5) : rect,
+                                       xRadius: 1.5, yRadius: 1.5)
+                if paused { bar.lineWidth = 1; bar.stroke() } else { bar.fill() }
+            }
+            return true
+        }
+        image.isTemplate = true
+        return image
+    }
+}
+
 struct MenuContent: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        if model.listening {
-            Toggle("Sounds On", isOn: $model.enabled)
-        } else {
-            Button("Allow Keyboard Access…") { model.requestAccess() }
+        VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                BrandMark().scaleEffect(0.875).frame(width: 28, height: 28)
+                Text("thock.").font(.display(24)).tracking(-1)
+                Spacer(minLength: 6)
+                StatusControl()
+            }
+            VStack(alignment: .leading, spacing: 15) {
+                HStack(spacing: 11) {
+                    SoundGlyph(sound: model.selected, size: 42, selected: true)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Eyebrow("ON YOUR KEYS")
+                        Text(model.selected.name).font(.display(21)).lineLimit(1).minimumScaleFactor(0.65)
+                    }
+                    Spacer(minLength: 0)
+                    IconButton(symbol: "play.fill", label: "Preview \(model.selected.name)") { model.preview(model.selected) }
+                }
+                Rectangle().fill(Color.line).frame(height: 1)
+                HStack(spacing: 9) {
+                    Image(systemName: "speaker.fill").font(.system(size: 11)).foregroundStyle(Color.muted)
+                    Slider(value: $model.volume, in: 0...1).accessibilityLabel("Sound volume")
+                    Text("\(Int(model.volume * 100))%").font(.technical(10)).monospacedDigit()
+                        .foregroundStyle(Color.muted).frame(width: 33, alignment: .trailing)
+                }
+            }
+            .padding(15).panel(radius: 13)
+            if !model.listening {
+                notice("Allow Input Monitoring to hear your keys in every app. You can preview sounds here.", symbol: "keyboard")
+            } else if let app = model.secureInputApp, model.enabled {
+                notice("\(app) has Secure Input on. Sounds return when it turns off.", symbol: "lock.shield")
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Eyebrow("PICK YOUR SOUND")
+                    Spacer()
+                    Text("\(model.allSounds.count) SOUNDS").font(.technical(9)).foregroundStyle(Color.muted)
+                }
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                        ForEach(model.allSounds) { SoundTile(sound: $0, compact: true) }
+                    }
+                    .padding(1)
+                }
+                .frame(height: min(CGFloat((model.allSounds.count + 2) / 3) * 70 - 6, 204))
+            }
+            Rectangle().fill(Color.line).frame(height: 1)
+            HStack {
+                Button {
+                    dismiss()
+                    openWindow(id: "main")
+                    NSApp.activate()
+                } label: {
+                    Label("Open Thock", systemImage: "arrow.up.forward.app")
+                        .font(.bodyText(12, bold: true)).foregroundStyle(Color.accent)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(QuietButton())
+                Spacer()
+                Button("Quit") { NSApp.terminate(nil) }
+                    .font(.bodyText(12)).foregroundStyle(Color.muted)
+                    .buttonStyle(QuietButton()).keyboardShortcut("q")
+                    .help("Quit Thock")
+            }
         }
-        Picker("Sound", selection: $model.selectedID) {
-            ForEach(model.allSounds) { Text("\($0.emoji)  \($0.name)").tag($0.id) }
+        .padding(16).frame(width: 352)
+        .background(Color.canvas)
+        .foregroundStyle(Color.ink).tint(Color.accent)
+        .preferredColorScheme(.light)
+    }
+
+    private func notice(_ text: String, symbol: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: symbol).font(.system(size: 12)).padding(.top, 2)
+            Text(text).font(.bodyText(11)).fixedSize(horizontal: false, vertical: true)
         }
-        Divider()
-        Button("Open Thock…") {
-            openWindow(id: "main")
-            NSApp.activate()
-        }
-        Button("Quit Thock") { NSApp.terminate(nil) }.keyboardShortcut("q")
+        .foregroundStyle(Color.accent).padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color.accentWash))
     }
 }

@@ -6,8 +6,9 @@ cd "$(dirname "$0")"
 APP=build/Thock.app
 TARGET="$(uname -m)-apple-macos14.0"   # pin: this Mac's CLT defaults to a newer macOS than it runs
 
-if [[ ! -f Resources/AppIcon.icns ]]; then
-  swift Tools/icon.swift build/AppIcon.iconset Resources/Fonts/EBGaramond.ttf
+if [[ ! -f Resources/AppIcon.icns || ! -f Resources/AppIcon.png ||
+      Tools/icon.swift -nt Resources/AppIcon.icns || Tools/icon.swift -nt Resources/AppIcon.png ]]; then
+  swift Tools/icon.swift build/AppIcon.iconset Resources/AppIcon.png
   iconutil -c icns build/AppIcon.iconset -o Resources/AppIcon.icns
 fi
 
