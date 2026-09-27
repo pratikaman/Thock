@@ -1,4 +1,6 @@
-# Thock
+<p align="center"><img src="Resources/AppIcon.png" width="128" alt="Thock app icon"></p>
+
+<h1 align="center">Thock</h1>
 
 Hear a sound every time you press a key on your Mac. Pick a keyboard click, a typewriter, a bubble pop, a gunshot, a meow, a woof or a quack, or add a sound of your own.
 
